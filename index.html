@@ -107,13 +107,12 @@
         }
         
         .note-item p {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2; /* Standard property */
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2; /* Standard property */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         
         .note-item .date {
             font-size: 0.8rem;
@@ -292,9 +291,9 @@
     
     <script>
         // Configuration
-        const API_KEY = 'YOUR_API_KEY';
-        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
-        const API_ENDPOINT = 'http://localhost:3000/api';
+        const API_KEY = 'AIzaSyD09TMeCHXGbRCEmaefaeR2ewjD6_7fk_8';
+        const CLIENT_ID = '590682454034-uu96nj194ab3lnamj729ap0ionfagsgv.apps.googleusercontent.com';
+        const API_ENDPOINT = 'http://localhost:4000/api';
         
         // DOM Elements
         const loginBtn = document.getElementById('login-btn');
@@ -338,37 +337,46 @@
                     
                     // Add event listeners for auth buttons
                     loginBtn.addEventListener('click', () => {
-                        authInstance.signIn().then(handleSignIn);
+                        authInstance.signIn().then(handleSignIn).catch(err => {
+                            console.error('Google Sign In Error:', err);
+                            alert('Failed to sign in with Google. Please try again.');
+                        });
                     });
                     
                     logoutBtn.addEventListener('click', () => {
                         authInstance.signOut().then(handleSignOut);
                     });
+                }).catch(err => {
+                    console.error('Google API Client Init Error:', err);
                 });
             });
         }
         
         // Handle user sign in
         function handleSignIn(user) {
-            const profile = user.getBasicProfile();
-            currentUser = {
-                id: profile.getId(),
-                name: profile.getName(),
-                email: profile.getEmail(),
-                image: profile.getImageUrl(),
-                token: user.getAuthResponse().id_token
-            };
-            
-            // Update UI
-            loginBtn.style.display = 'none';
-            userInfo.style.display = 'flex';
-            userName.textContent = currentUser.name;
-            userImage.src = currentUser.image;
-            loginRequired.style.display = 'none';
-            appContainer.style.display = 'grid';
-            
-            // Fetch user notes
-            fetchNotes();
+            try {
+                const profile = user.getBasicProfile();
+                currentUser = {
+                    id: profile.getId(),
+                    name: profile.getName(),
+                    email: profile.getEmail(),
+                    image: profile.getImageUrl(),
+                    token: user.getAuthResponse().id_token
+                };
+                
+                // Update UI
+                loginBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                userName.textContent = currentUser.name;
+                userImage.src = currentUser.image;
+                loginRequired.style.display = 'none';
+                appContainer.style.display = 'grid';
+                
+                // Fetch user notes
+                fetchNotes();
+            } catch (error) {
+                console.error('Error handling sign in:', error);
+            }
         }
         
         // Handle user sign out
@@ -405,9 +413,14 @@
                     } else {
                         clearEditor();
                     }
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error response from server:', errorData);
+                    alert(`Failed to fetch notes: ${errorData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error fetching notes:', error);
+                alert('Failed to fetch notes. Please check your connection and try again.');
             }
         }
         
@@ -512,9 +525,14 @@
                     }
                     
                     renderNotesList();
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error saving note:', errorData);
+                    alert(`Failed to save note: ${errorData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error saving note:', error);
+                alert('Failed to save note. Please check your connection and try again.');
             }
         }
         
@@ -544,9 +562,14 @@
                     }
                     
                     renderNotesList();
+                } else {
+                    const errorData = await response.json();
+                    console.error('Error deleting note:', errorData);
+                    alert(`Failed to delete note: ${errorData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error('Error deleting note:', error);
+                alert('Failed to delete note. Please check your connection and try again.');
             }
         }
         
@@ -555,7 +578,10 @@
             if (!currentUser) return;
             
             const content = noteContent.value.trim();
-            if (!content) return;
+            if (!content) {
+                alert('Please enter some text before using AI features');
+                return;
+            }
             
             // Show loading state
             const button = document.getElementById(`${action}-btn`);
@@ -578,9 +604,14 @@
                     const data = await response.json();
                     suggestionText.textContent = data.result;
                     aiSuggestion.style.display = 'block';
+                } else {
+                    const errorData = await response.json();
+                    console.error(`Error with AI ${action}:`, errorData);
+                    alert(`Failed to process with AI: ${errorData.error || 'Unknown error'}`);
                 }
             } catch (error) {
                 console.error(`Error with AI ${action}:`, error);
+                alert(`AI processing failed. Please check your connection and try again.`);
             } finally {
                 button.textContent = buttonText;
                 button.disabled = false;
