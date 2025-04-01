@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
 // const { GoogleGenerativeAI } = require("@google/generative-ai");
-const fetch = require('node-fetch');
 require('dotenv').config();
 
 
