@@ -3,7 +3,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
-// const { GoogleGenerativeAI } = require("@google/generative-ai");
 require('dotenv').config();
 
 
@@ -14,7 +13,6 @@ const HF_TOKEN = process.env.HUGGING_FACE_API_TOKEN;
 
 if (!HF_TOKEN) {
   console.error('HUGGING_FACE_API_TOKEN is not set in environment variables');
-  return res.status(500).json({ error: 'API configuration error' });
 }
 
 // Models for different tasks
@@ -43,14 +41,9 @@ async function query(model, payload) {
   return await response.json();
 }
 
-// Initialize Gemini API
-// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Middleware
 // Middleware
 app.use(cors({
   origin: ['http://localhost:3000', 'https://ainotesapp.netlify.app', 'http://127.0.0.1:3000'],
@@ -212,7 +205,6 @@ app.post('/api/ai/summarize', async (req, res) => {
     
     // Check if HF token is set
     if (!HF_TOKEN) {
-      console.error('HUGGING_FACE_API_TOKEN is not set in environment variables');
       return res.status(500).json({ error: 'API configuration error' });
     }
     
@@ -244,7 +236,6 @@ app.post('/api/ai/improve', async (req, res) => {
     
     // Check if HF token is set
     if (!HF_TOKEN) {
-      console.error('HUGGING_FACE_API_TOKEN is not set in environment variables');
       return res.status(500).json({ error: 'API configuration error' });
     }
     
@@ -274,7 +265,6 @@ app.post('/api/ai/ideas', async (req, res) => {
     
     // Check if HF token is set
     if (!HF_TOKEN) {
-      console.error('HUGGING_FACE_API_TOKEN is not set in environment variables');
       return res.status(500).json({ error: 'API configuration error' });
     }
     
