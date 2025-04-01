@@ -7,11 +7,15 @@ const { OAuth2Client } = require('google-auth-library');
 require('dotenv').config();
 
 
-const fetch = require('node-fetch');
 
 // Hugging Face Inference API configuration
 const HF_API_URL = 'https://api-inference.huggingface.co/models';
 const HF_TOKEN = process.env.HUGGING_FACE_API_TOKEN;
+
+if (!HF_TOKEN) {
+  console.error('HUGGING_FACE_API_TOKEN is not set in environment variables');
+  return res.status(500).json({ error: 'API configuration error' });
+}
 
 // Models for different tasks
 const MODELS = {
@@ -47,9 +51,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
+// Middleware
 app.use(cors({
   origin: ['http://localhost:3000', 'https://ainotesapp.netlify.app', 'http://127.0.0.1:3000'],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
