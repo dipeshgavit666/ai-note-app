@@ -6,41 +6,6 @@ const { OAuth2Client } = require('google-auth-library');
 require('dotenv').config();
 
 
-
-// Hugging Face Inference API configuration
-const HF_API_URL = 'https://api-inference.huggingface.co/models';
-const HF_TOKEN = process.env.HUGGING_FACE_API_TOKEN;
-
-if (!HF_TOKEN) {
-  console.error('HUGGING_FACE_API_TOKEN is not set in environment variables');
-}
-
-// Models for different tasks
-const MODELS = {
-  summarize: 'facebook/bart-large-cnn',
-  improve: 'google/pegasus-xsum',
-  ideas: 'EleutherAI/gpt-neo-1.3B'
-};
-
-// Helper function to make calls to Hugging Face API
-async function query(model, payload) {
-  const response = await fetch(`${HF_API_URL}/${model}`, {
-    headers: {
-      'Authorization': `Bearer ${HF_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Hugging Face API Error: ${JSON.stringify(error)}`);
-  }
-  
-  return await response.json();
-}
-
 const app = express();
 const PORT = process.env.PORT || 4000;
 
@@ -193,105 +158,7 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// AI Endpoints
-// Summarize text
-app.post('/api/ai/summarize', async (req, res) => {
-  try {
-    const { text } = req.body;
-    
-    if (!text) {
-      return res.status(400).json({ error: 'Text is required' });
-    }
-    
-    // Check if HF token is set
-    if (!HF_TOKEN) {
-      return res.status(500).json({ error: 'API configuration error' });
-    }
-    
-    const result = await query(MODELS.summarize, {
-      inputs: text,
-      parameters: {
-        max_length: 150,
-        min_length: 30,
-        do_sample: false
-      }
-    });
-    
-    // Return the result with appropriate structure
-    res.json({ result: result[0].summary_text });
-  } catch (error) {
-    console.error('Error with AI summarize:', error);
-    res.status(500).json({ error: 'Failed to summarize text' });
-  }
-});
 
-// Improve writing
-app.post('/api/ai/improve', async (req, res) => {
-  try {
-    const { text } = req.body;
-    
-    if (!text) {
-      return res.status(400).json({ error: 'Text is required' });
-    }
-    
-    // Check if HF token is set
-    if (!HF_TOKEN) {
-      return res.status(500).json({ error: 'API configuration error' });
-    }
-    
-    const result = await query(MODELS.improve, {
-      inputs: text,
-      parameters: {
-        max_length: 200,
-        return_full_text: true
-      }
-    });
-    
-    res.json({ result: result[0].generated_text });
-  } catch (error) {
-    console.error('Error with AI improve:', error);
-    res.status(500).json({ error: 'Failed to improve text' });
-  }
-});
-
-// Generate ideas
-app.post('/api/ai/ideas', async (req, res) => {
-  try {
-    const { text } = req.body;
-    
-    if (!text) {
-      return res.status(400).json({ error: 'Topic is required' });
-    }
-    
-    // Check if HF token is set
-    if (!HF_TOKEN) {
-      return res.status(500).json({ error: 'API configuration error' });
-    }
-    
-    const prompt = `Generate 5 creative ideas about: ${text}\n\n1.`;
-    
-    const result = await query(MODELS.ideas, {
-      inputs: prompt,
-      parameters: {
-        max_length: 250,
-        temperature: 0.7,
-        top_p: 0.9,
-        return_full_text: false
-      }
-    });
-    
-    // Process and format the ideas
-    let ideasText = "1." + result[0].generated_text;
-    const ideasArray = ideasText.split(/\d+\./).filter(item => item.trim() !== '');
-    
-    res.json({ result: ideasArray.join('\n') });
-  } catch (error) {
-    console.error('Error with AI ideas:', error);
-    res.status(500).json({ error: 'Failed to generate ideas' });
-  }
-});
-
-// Add a simple test route
 app.get('/api/test', (req, res) => {
     res.json({ status: 'API is working!' });
 });
