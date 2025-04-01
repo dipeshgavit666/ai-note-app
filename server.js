@@ -3,12 +3,46 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+// const { GoogleGenerativeAI } = require("@google/generative-ai");
+const fetch = require('node-fetch');
 require('dotenv').config();
 
+
+const fetch = require('node-fetch');
+
+// Hugging Face Inference API configuration
+const HF_API_URL = 'https://api-inference.huggingface.co/models';
+const HF_TOKEN = process.env.HUGGING_FACE_API_TOKEN;
+
+// Models for different tasks
+const MODELS = {
+  summarize: 'facebook/bart-large-cnn',
+  improve: 'google/pegasus-xsum',
+  ideas: 'EleutherAI/gpt-neo-1.3B'
+};
+
+// Helper function to make calls to Hugging Face API
+async function query(model, payload) {
+  const response = await fetch(`${HF_API_URL}/${model}`, {
+    headers: {
+      'Authorization': `Bearer ${HF_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Hugging Face API Error: ${JSON.stringify(error)}`);
+  }
+  
+  return await response.json();
+}
+
 // Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -162,49 +196,86 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
 
 // AI Endpoints
 // Summarize text
-app.post('/api/ai/summarize', authenticateToken, async (req, res) => {
+app.post('/api/ai/summarize', async (req, res) => {
     try {
-        const { text } = req.body;
-        if (!text) return res.status(400).json({ error: 'No text provided' });
-
-        const result = await model.generateContent(`Summarize the following text:\n\n${text}`);
-        const response = await result.response;
-        res.json({ result: response.text() });
+      const { text } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: 'Text is required' });
+      }
+      
+      const result = await query(MODELS.summarize, {
+        inputs: text,
+        parameters: {
+          max_length: 150,
+          min_length: 30,
+          do_sample: false
+        }
+      });
+      
+      // Return the first generated summary
+      res.json({ summary: result[0].summary_text });
     } catch (error) {
-        console.error('Gemini error:', error);
-        res.status(500).json({ error: 'Failed to summarize text' });
+      console.error('Error with AI summarize:', error);
+      res.status(500).json({ error: 'Failed to summarize text' });
     }
-});
+  });
 
 // Improve writing
-app.post('/api/ai/improve', authenticateToken, async (req, res) => {
+app.post('/api/ai/improve', async (req, res) => {
     try {
-        const { text } = req.body;
-        if (!text) return res.status(400).json({ error: 'No text provided' });
-
-        const result = await model.generateContent(`Improve the following text by making it more clear, concise, and professional:\n\n${text}`);
-        const response = await result.response;
-        res.json({ result: response.text() });
+      const { text } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: 'Text is required' });
+      }
+      
+      const result = await query(MODELS.improve, {
+        inputs: text,
+        parameters: {
+          max_length: 200,
+          return_full_text: true
+        }
+      });
+      
+      res.json({ improved: result[0].generated_text });
     } catch (error) {
-        console.error('Gemini error:', error);
-        res.status(500).json({ error: 'Failed to improve text' });
+      console.error('Error with AI improve:', error);
+      res.status(500).json({ error: 'Failed to improve text' });
     }
-});
+  });
 
 // Generate ideas
-app.post('/api/ai/ideas', authenticateToken, async (req, res) => {
+app.post('/api/ai/ideas', async (req, res) => {
     try {
-        const { text } = req.body;
-        if (!text) return res.status(400).json({ error: 'No text provided' });
-
-        const result = await model.generateContent(`Based on the following text, suggest some related ideas, questions to explore, or points to consider:\n\n${text}`);
-        const response = await result.response;
-        res.json({ result: response.text() });
+      const { topic } = req.body;
+      
+      if (!topic) {
+        return res.status(400).json({ error: 'Topic is required' });
+      }
+      
+      const prompt = `Generate 5 creative ideas about: ${topic}\n\n1.`;
+      
+      const result = await query(MODELS.ideas, {
+        inputs: prompt,
+        parameters: {
+          max_length: 250,
+          temperature: 0.7,
+          top_p: 0.9,
+          return_full_text: false
+        }
+      });
+      
+      // Process and format the ideas
+      let ideasText = "1." + result[0].generated_text;
+      const ideasArray = ideasText.split(/\d+\./).filter(item => item.trim() !== '');
+      
+      res.json({ ideas: ideasArray });
     } catch (error) {
-        console.error('Gemini error:', error);
-        res.status(500).json({ error: 'Failed to generate ideas' });
+      console.error('Error with AI ideas:', error);
+      res.status(500).json({ error: 'Failed to generate ideas' });
     }
-});
+  });
 
 // Add a simple test route
 app.get('/api/test', (req, res) => {
