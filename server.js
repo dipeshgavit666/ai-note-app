@@ -3,8 +3,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { OAuth2Client } = require('google-auth-library');
+const { Configuration, OpenAIApi } = require('openai');
 require('dotenv').config();
 
+// Initialize OpenAI
+const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY
+});
+const openai = new OpenAIApi(configuration);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -158,6 +164,29 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// AI route for summarizing notes
+app.post('/api/ai/summarize', authenticateToken, async (req, res) => {
+    try {
+        const { text } = req.body;
+        
+        if (!text || text.trim().length === 0) {
+            return res.status(400).json({ error: 'Text is required' });
+        }
+        
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt: `Summarize the following text in a concise way:\n\n${text}`,
+            max_tokens: 150,
+            temperature: 0.5,
+        });
+        
+        const summary = response.data.choices[0].text.trim();
+        res.json({ summary });
+    } catch (error) {
+        console.error('Error summarizing text:', error);
+        res.status(500).json({ error: 'Failed to summarize text' });
+    }
+});
 
 app.get('/api/test', (req, res) => {
     res.json({ status: 'API is working!' });
@@ -165,4 +194,5 @@ app.get('/api/test', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log(`API endpoint available at http://localhost:${PORT}/api`);
 });
