@@ -166,26 +166,34 @@ app.delete('/api/notes/:id', authenticateToken, async (req, res) => {
 
 // AI route for summarizing notes
 app.post('/api/ai/summarize', authenticateToken, async (req, res) => {
-    try {
-        const { text } = req.body;
-        
-        if (!text || text.trim().length === 0) {
-            return res.status(400).json({ error: 'Text is required' });
-        }
-        
-        const response = await openai.createCompletion({
-            model: "text-davinci-003",
-            prompt: `Summarize the following text in a concise way:\n\n${text}`,
-            max_tokens: 150,
-            temperature: 0.5,
-        });
-        
-        const summary = response.data.choices[0].text.trim();
-        res.json({ summary });
-    } catch (error) {
-        console.error('Error summarizing text:', error);
-        res.status(500).json({ error: 'Failed to summarize text' });
+  try {
+    const { text } = req.body;
+    
+    if (!text?.trim()) {
+      return res.status(400).json({ error: 'Text is required' });
     }
+
+    // Use the modern chat completions endpoint
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{
+        role: "user",
+        content: `Summarize this in 3-5 concise bullet points:\n\n${text}`
+      }],
+      temperature: 0.5,
+      max_tokens: 150
+    });
+
+    const summary = response.choices[0].message.content;
+    res.json({ summary });
+    
+  } catch (error) {
+    console.error('OpenAI Error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Failed to summarize text',
+      details: error.message 
+    });
+  }
 });
 
 app.get('/api/test', (req, res) => {
